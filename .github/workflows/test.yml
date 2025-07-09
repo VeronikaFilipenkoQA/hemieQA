@@ -2,10 +2,24 @@ name: Run Tests by Environment
 
 on:
   workflow_dispatch:
+    inputs:
+      environment:
+        description: "Select environment to run tests"
+        required: true
+        default: "all"
+        type: choice
+        options:
+          - all
+          - dev
+          - stage
+          - prod
+
   push:
     branches: [main]
+
   pull_request:
     branches: [main]
+
   schedule:
     - cron: "0 0 * * *"
 
@@ -20,18 +34,36 @@ jobs:
     name: Run tests on ${{ matrix.env }} environment
 
     steps:
+      - name: Skip if environment does not match
+        if: github.event.inputs.environment != '' &&
+          github.event.inputs.environment != 'all' &&
+          github.event.inputs.environment != matrix.env
+        run: echo "Skipping ${{ matrix.env }}..."
+
       - name: Checkout repository
+        if: github.event.inputs.environment == '' ||
+          github.event.inputs.environment == 'all' ||
+          github.event.inputs.environment == matrix.env
         uses: actions/checkout@v3
 
       - name: Set up Node.js
+        if: github.event.inputs.environment == '' ||
+          github.event.inputs.environment == 'all' ||
+          github.event.inputs.environment == matrix.env
         uses: actions/setup-node@v3
         with:
           node-version: 20
 
       - name: Install dependencies for Chrome/Chromedriver
+        if: github.event.inputs.environment == '' ||
+          github.event.inputs.environment == 'all' ||
+          github.event.inputs.environment == matrix.env
         run: sudo apt-get update && sudo apt-get install -y jq unzip wget curl
 
       - name: Install latest Chrome and Chromedriver
+        if: github.event.inputs.environment == '' ||
+          github.event.inputs.environment == 'all' ||
+          github.event.inputs.environment == matrix.env
         run: |
           wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
           sudo apt install -y ./google-chrome-stable_current_amd64.deb
@@ -49,28 +81,45 @@ jobs:
           chromedriver --version
 
       - name: Clean npm cache
+        if: github.event.inputs.environment == '' ||
+          github.event.inputs.environment == 'all' ||
+          github.event.inputs.environment == matrix.env
         run: npm cache clean --force
 
       - name: Install project dependencies
+        if: github.event.inputs.environment == '' ||
+          github.event.inputs.environment == 'all' ||
+          github.event.inputs.environment == matrix.env
         run: npm install
 
       - name: Run tests for ${{ matrix.env }}
+        if: github.event.inputs.environment == '' ||
+          github.event.inputs.environment == 'all' ||
+          github.event.inputs.environment == matrix.env
         env:
           CI: true
         run: npm run test:${{ matrix.env }} || true
 
       - name: Upload HTML Test Report
-        if: always()
+        if: always() && (
+          github.event.inputs.environment == '' ||
+          github.event.inputs.environment == 'all' ||
+          github.event.inputs.environment == matrix.env
+          )
         uses: actions/upload-artifact@v4
         with:
           name: report-${{ matrix.env }}
           path: report.html
 
-      - name: Notify Slack
-        if: always()
+  notify:
+    needs: test
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify Slack once after all environments
         run: |
           curl -X POST -H 'Content-type: application/json' \
             --data '{
-              "text": ":white_check_mark: Prod tests completed! HTML report: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              "text": ":white_check_mark: Tests completed! HTML report: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             }' \
             ${{ secrets.SLACK_WEBHOOK_URL }}
