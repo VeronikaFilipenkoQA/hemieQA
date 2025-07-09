@@ -65,3 +65,12 @@ jobs:
         with:
           name: report-${{ matrix.env }}
           path: report.html
+
+      - name: Notify Slack
+        if: always()
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+            --data '{
+              "text": ":white_check_mark: Prod tests completed! HTML report: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }' \
+            ${{ secrets.SLACK_WEBHOOK_URL }}
