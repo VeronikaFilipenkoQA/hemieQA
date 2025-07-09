@@ -1,0 +1,28 @@
+{
+  "name": "hemie-tests",
+  "version": "1.0.0",
+  "description": "Selenium WebDriver tests for Hemie.se",
+  "type": "module",
+  "scripts": {
+    "test": "mocha --require @babel/register --reporter mocha-simple-html-reporter --reporter-options output=report.html --exit \"tests/**/*.js\"",
+
+    "test:prod": "mocha --require @babel/register --reporter mocha-simple-html-reporter --reporter-options output=report.html --exit $(find tests -name '*prod.js')",
+    "test:stage": "mocha --require @babel/register --reporter mocha-simple-html-reporter --reporter-options output=report.html --exit $(find tests -name '*stage.js')",
+    "test:dev": "mocha --require @babel/register --reporter mocha-simple-html-reporter --reporter-options output=report.html --exit $(find tests -name '*dev.js')",
+
+    "test:sign-in": "mocha --require @babel/register tests/sign_in/*.js",
+    "test:sign-up": "mocha --require @babel/register tests/sign_up/*.js",
+    "test:other": "mocha --require @babel/register tests/other/*.js"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.27.1",
+    "@babel/preset-env": "^7.27.2",
+    "@babel/register": "^7.27.1",
+    "chai": "^5.2.0",
+    "chromedriver": "^138.0.1",
+    "mocha": "^10.8.2",
+    "mocha-simple-html-reporter": "^2.0.0",
+    "prettier": "^3.5.3",
+    "selenium-webdriver": "^4.32.0"
+  }
+}

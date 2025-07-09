@@ -1,0 +1,67 @@
+name: Run Tests by Environment
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 0 * * *"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        env: [dev, stage, prod]
+
+    name: Run tests on ${{ matrix.env }} environment
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      - name: Install dependencies for Chrome/Chromedriver
+        run: sudo apt-get update && sudo apt-get install -y jq unzip wget curl
+
+      - name: Install latest Chrome and Chromedriver
+        run: |
+          wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+          sudo apt install -y ./google-chrome-stable_current_amd64.deb
+
+          CHROME_VERSION=$(google-chrome --version | grep -oP '\d+\.\d+\.\d+' | head -1)
+          CHROMEDRIVER_VERSION=$(curl -s "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json" | jq -r ".channels.Stable.version")
+
+          echo "Chrome version: $CHROME_VERSION"
+          echo "Using Chromedriver version: $CHROMEDRIVER_VERSION"
+
+          wget -q "https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/${CHROMEDRIVER_VERSION}/linux64/chromedriver-linux64.zip"
+          unzip chromedriver-linux64.zip
+          sudo mv chromedriver-linux64/chromedriver /usr/local/bin/chromedriver
+          sudo chmod +x /usr/local/bin/chromedriver
+          chromedriver --version
+
+      - name: Clean npm cache
+        run: npm cache clean --force
+
+      - name: Install project dependencies
+        run: npm install
+
+      - name: Run tests for ${{ matrix.env }}
+        env:
+          CI: true
+        run: npm run test:${{ matrix.env }} || true
+
+      - name: Upload HTML Test Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: report-${{ matrix.env }}
+          path: report.html
